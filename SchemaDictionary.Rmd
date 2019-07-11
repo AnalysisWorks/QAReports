@@ -1,0 +1,64 @@
+---
+classoption: landscape
+header-includes:
+    - \usepackage{booktabs}
+    - \usepackage{longtable}
+    - \usepackage{array}
+    - \usepackage{multirow}
+    - \usepackage[table]{xcolor}
+    - \usepackage{wrapfig}
+    - \usepackage{float}
+    - \usepackage{colortbl}
+    - \usepackage{pdflscape}
+    - \usepackage{tabu}
+    - \usepackage{threeparttable}
+    - \usepackage[normalem]{ulem}
+
+    
+    - \usepackage{fancyhdr}
+    - \pagestyle{fancy}
+    - \fancyhead[CO,CE]{}
+    - \fancyfoot[CO,CE]{"`r format(Sys.time(), '%m/%d/%Y %H:%M')`"}
+    - \fancyfoot[LE,RO]{\thepage}
+    
+params:
+   arg1: NULL
+   title: NULL
+
+title: "`r params$title`"
+output: pdf_document
+---
+
+
+```{r echo = FALSE, results = 'asis', warning=FALSE}
+library(knitr)
+library(kableExtra)
+
+#len contains the number of schemas to print
+#arg1 contains a list of list of dataframes contain meta, field and link information
+
+
+len <- length(params$arg1)/3
+
+#initialize length to number of schemas
+for(i in 1:len){
+  cat(sprintf("#%s {#%s}", params$arg1[[i]][[1]],params$arg1[[i]][[1]] ))
+  
+  #meta data about schema
+  print(kable(params$arg1[[i]], row.names = FALSE, format = "latex", booktabs = T)
+        %>% kable_styling(full_width = T, latex_options = c("scale_down")))
+  
+  #link data about schema
+  print(kable(params$arg1[[i+(2*len)]], row.names = FALSE, format = "latex", booktabs = T)
+        %>% kable_styling(full_width = T, latex_options = c("scale_down")))
+
+  #field and attribute names about schema 
+  print(kable(params$arg1[[i+(len)]], row.names = FALSE, format = "latex", booktabs = TRUE, longtable = TRUE)
+        %>% kable_styling(full_width = T, latex_options = c("repeat_header", "striped"))
+        %>% column_spec(c(2,3,5,6), width = "1.2cm"))
+  cat("\n\n\\newpage\n")
+ 
+}
+```
+
+

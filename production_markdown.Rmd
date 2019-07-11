@@ -1,0 +1,120 @@
+---
+classoption: landscape
+header-includes:
+    - \usepackage{booktabs}
+    - \usepackage{longtable}
+    - \usepackage{array}
+    - \usepackage{multirow}
+    - \usepackage[table]{xcolor}
+    - \usepackage{wrapfig}
+    - \usepackage{float}
+    - \usepackage{colortbl}
+    - \usepackage{pdflscape}
+    - \usepackage{tabu}
+    - \usepackage{threeparttable}
+    - \usepackage[normalem]{ulem}
+    - \usepackage{fancyhdr}
+    - \pagestyle{fancy}
+    - \fancyhead[CO,CE]{}
+    - \fancyfoot[CO,CE]{"`r format(Sys.time(), '%m/%d/%Y %H:%M')`"}
+    - \fancyfoot[LE,RO]{\thepage}
+params:
+    check: NULL
+    rawData: NULL
+    classes: NULL
+    set_title: "Data QA"
+title: "`r params$set_title`"
+output: pdf_document
+---
+
+```{r, include=FALSE}
+options(tinytex.verbose = TRUE)
+```
+
+```{r echo = FALSE, include = FALSE,results='asis'}
+#Load required libraries
+library(knitr)
+library(kableExtra)
+
+#Takes in a column from an extract
+#calculates frequency of field values
+#formats into key value pairs and stacks horizontally
+#returns data frame
+formatDataFrame <- function(data, dataName){
+    freqTable <- as.data.frame(table(data), stringsAsFactors=FALSE)
+
+    if(!any(!is.na(data))){
+        return(0)
+    }
+
+    names(freqTable) <- c(dataName, "Count")
+    Len <- dim(freqTable)[1]
+
+    freqTable <- freqTable[rev(order(freqTable$Count)),]
+    #page limit is 35 rows, three times over
+    if( Len > 30){
+        freqTable <- freqTable[1:30,]
+        Rows = 10
+    }
+    else{
+        Rows = ceiling(Len / 3)
+    }
+
+    #Format into 3 key value pair columns, stacking horizontally
+    #Pad data to maintain structure, returns additional values needed to reach divisible structure
+    padNum = 3 - Len %% 3
+    if(padNum != 3){
+        for( i in 1:padNum){
+            freqTable[Len+1,] <- c(NA, 0)
+        }
+    }
+
+    formatted.Data <- cbind(freqTable[1:Rows,],freqTable[(Rows+1):(Rows*2),],freqTable[(Rows*2+1):(Rows*3),])
+    formatted.Data
+}
+```
+
+```{r echo = FALSE, results = 'asis', warning=FALSE}
+#Insert table for the meta data
+#formatting for clarity
+kable(params$check, format = "latex", booktabs = T, longtable = T) %>% kable_styling(position = "center", full_width = T, latex_options = c("striped")) %>%  column_spec(c(2,3,4), width = "1.2cm")
+
+#set up useful variable
+len <- length(params$rawData)
+data_col_names <- c('Field Value', 'Count','Field Value', 'Count','Field Value', 'Count')
+
+#new page command, inserts newpage keyword into raw LaTEX
+cat("\n\n\\newpage\n")
+for(i in 1:len){
+    #Insert the relevant row from the raw meta data
+    cat(sprintf("#%s",names(params$rawData)[i]))
+
+    if( all( is.na( params$rawData[i]))) {
+        cat(" is NULL")
+        cat("\n\n\\newpage\n")
+        next
+    }
+
+    #If the field is all 'NA' skip
+    if(is.na(params$check[i,3])){
+        cat(" is NULL")
+        cat("\n\n\\newpage\n")
+        next
+    }
+    metaData <- as.matrix(rbind(params$check[i,], names(params$check)))
+    print( kable( metaData, format = "latex", booktabs = T) %>% kable_styling(position = "center", full_width = T) %>%  column_spec(c(1,2,3), width = "1.2cm"))
+
+    ####TODO
+    # May be able to insert graphs differently to handle figure error
+      #insert trend graph for date fields
+    if(params$classes[i] == "Date" || params$classes[i] == "numeric" || params$classes[i] == "POSIXct" || params$classes[i] == "POSIXlt" || params$classes[i] == "POSIXt"){
+        hist(params$rawData[,i], breaks = length(unique(params$rawData[,i])), main=names(params$rawData)[i], xlab = "Dates", ylab = "COUNT", freq = TRUE)
+        cat("\n\n\\newpage\n")
+        next
+    }
+    # create a frequency key value pair table dataframe and place in table
+    formatted.Data <- as.matrix(formatDataFrame(params$rawData[,i], names(params$rawData)[i]))
+    print(kable(formatted.Data, col.names = data_col_names, row.names = FALSE, format = "latex", booktabs = T) %>% kable_styling(position = "center", full_width = T, latex_options = c("striped")) %>%  column_spec(c(2,4,6), width = "0.8cm"))
+    cat("\n\n\\newpage\n")
+}
+```
